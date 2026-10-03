@@ -10,31 +10,36 @@ Forecast daily sales for each store-item series in the Kaggle Store Item Demand 
 
 `02_model.py` compares a 364-day seasonal-naive baseline with LightGBM. It chooses between two LightGBM configurations using a 90-day validation slice immediately before the test window, refits the selected configuration on all pre-test data, logs baseline, tuning, and final runs to MLflow, and reports held-out WAPE and RMSE. MLflow metadata uses SQLite at `mlruns/mlflow.db`; artifacts are stored under `mlruns/artifacts`.
 
-`03_inventory.py` computes residual-based safety stock and reorder points, then uses PuLP/CBC to allocate item supply across stores. It compares actual unmet test-window demand with an equal store split using the same item supply.
+`03_inventory.py` computes residual-based safety stock and reorder points, then uses PuLP/CBC to minimize a tangent-envelope approximation of normal expected shortage. It compares actual unmet test-window demand with proportional-to-forecast and equal-split allocations using the same item supply.
 
 ## Assumptions
 
 - `ASSUMPTION_LEAD_TIME_DAYS = 7` days.
 - `ASSUMPTION_SERVICE_LEVEL = 0.95`; the safety-stock z-score is calculated from the standard normal distribution.
 - `ASSUMPTION_SUPPLY_FRACTION = 0.8` of each item's total forecast demand over the test window.
+- `ASSUMPTION_DAILY_ERRORS_INDEPENDENT = True` for aggregating daily residual standard deviation over the forecast horizon.
 - US holidays are US federal holidays, including observed dates.
 
 ## Results
 
 | Measure | Result |
 | --- | ---: |
-| Input rows | 913,000 |
-| Feature rows after warmup | 731,000 |
-| Nulls in model features | 0 |
-| Test window | 2017-10-03 to 2017-12-31 (90 days) |
 | Seasonal-naive WAPE | 0.15285170205608586 |
 | Seasonal-naive RMSE | 10.897469634940235 |
-| LightGBM WAPE | 0.1099327947157128 |
-| LightGBM RMSE | 7.792766304433774 |
-| Total assumed inventory supply | 1,980,418 |
-| Optimized actual unmet demand | 497,511 |
-| Equal-split actual unmet demand | 527,741 |
-| MLflow runs | 8 finished, including rerun history |
+| LightGBM WAPE | 0.10993207669432929 |
+| LightGBM RMSE | 7.792493187285158 |
+| Total assumed inventory supply | 1,980,559 |
+| PuLP actual unmet demand | 478,490 |
+| Proportional-to-forecast actual unmet demand | 477,850 |
+| Equal-split actual unmet demand | 527,645 |
+
+## Limitations
+
+- Lead time, target service level, and supply fraction are assumptions (`7` days, `0.95`, and `0.8` respectively), not values from the data.
+- Expected shortage assumes daily errors are independent.
+- Residual standard deviation is estimated from the same final 90-day test window used for actual-demand evaluation.
+- This is a simulated inventory scenario using public Kaggle data, not company data.
+- The equal-split benchmark divides item supply evenly across stores and can exceed a particular store's forecast demand; it remains constrained by total item supply.
 
 ## Screenshots
 

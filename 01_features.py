@@ -1,9 +1,9 @@
 # Databricks notebook source
 # COMMAND ----------
-from datetime import date, timedelta
-import calendar
+from datetime import timedelta
 import os
 
+from pandas.tseries.holiday import USFederalHolidayCalendar
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 from pyspark.sql import SparkSession
@@ -46,50 +46,15 @@ if null_count or duplicate_count:
 sales = sales.repartition("store", "item").sortWithinPartitions("store", "item", "date")
 print(sales.orderBy("store", "item", "date").limit(20).toPandas().to_string(index=False))
 
-def observed_weekday(year, month, weekday, occurrence):
-    first_weekday, _ = calendar.monthrange(year, month)
-    day = 1 + (weekday - first_weekday) % 7 + 7 * (occurrence - 1)
-    return date(year, month, day)
-
-
-def observed_last_weekday(year, month, weekday):
-    last_day = calendar.monthrange(year, month)[1]
-    last_date = date(year, month, last_day)
-    return last_date - timedelta(days=(last_date.weekday() - weekday) % 7)
-
-
-def us_federal_holidays(year):
-    holidays = {
-        observed_weekday(year, 1, 0, 3),
-        observed_weekday(year, 2, 0, 3),
-        observed_last_weekday(year, 5, 0),
-        date(year, 7, 4),
-        observed_weekday(year, 9, 0, 1),
-        observed_weekday(year, 10, 0, 2),
-        date(year, 11, 11),
-        observed_weekday(year, 11, 3, 4),
-        date(year, 12, 25),
-    }
-    if year >= 2021:
-        holidays.add(date(year, 6, 19))
-    observed = set()
-    for holiday in holidays:
-        if holiday.weekday() == 5:
-            observed.add(holiday - timedelta(days=1))
-        elif holiday.weekday() == 6:
-            observed.add(holiday + timedelta(days=1))
-        else:
-            observed.add(holiday)
-    return observed
-
-
 date_bounds = sales.agg(F.min("date").alias("min_date"), F.max("date").alias("max_date")).first()
-holiday_dates = sorted(
-    holiday
-    for year in range(date_bounds.min_date.year, date_bounds.max_date.year + 1)
-    for holiday in us_federal_holidays(year)
+holiday_dates = USFederalHolidayCalendar().holidays(
+    start=date_bounds.min_date,
+    end=date_bounds.max_date,
 )
-holidays = spark.createDataFrame([(holiday,) for holiday in holiday_dates], ["holiday_date"])
+holidays = spark.createDataFrame(
+    [(holiday.to_pydatetime().date(),) for holiday in holiday_dates],
+    ["holiday_date"],
+)
 max_date = date_bounds.max_date
 test_start = max_date - timedelta(days=HORIZON_DAYS - 1)
 series_window = Window.partitionBy("store", "item").orderBy("date")

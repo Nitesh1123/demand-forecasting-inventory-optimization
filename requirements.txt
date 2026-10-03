@@ -1,0 +1,9 @@
+pyspark==4.2.0
+lightgbm==4.7.0
+mlflow==3.16.1
+pandas==2.3.3
+numpy==2.5.3
+matplotlib==3.11.2
+pyarrow==25.0.1
+PuLP[cbc]==4.0.0
+cbcbox==2.935

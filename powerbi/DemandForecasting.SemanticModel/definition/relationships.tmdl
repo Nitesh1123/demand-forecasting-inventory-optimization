@@ -1,0 +1,31 @@
+relationship f960d144-4048-5a3a-a239-4fe9863c92c8
+	fromColumn: fact_sales.date
+	toColumn: dim_date.date
+
+relationship 160d0cb2-4667-5b76-a17b-79de9a3aa27b
+	fromColumn: fact_sales.store
+	toColumn: dim_store.store
+
+relationship 51b35920-fc14-5ef6-9988-57975256d1c2
+	fromColumn: fact_sales.item
+	toColumn: dim_item.item
+
+relationship 1351e4f8-6796-5134-9043-6c48020c6954
+	fromColumn: fact_forecast.date
+	toColumn: dim_date.date
+
+relationship fc30acb4-171f-5104-9453-4d2668036217
+	fromColumn: fact_forecast.store
+	toColumn: dim_store.store
+
+relationship 7d068771-b3ca-51eb-965d-7dddefdb812a
+	fromColumn: fact_forecast.item
+	toColumn: dim_item.item
+
+relationship 6eff82f1-b14a-5551-9d24-761e86e13607
+	fromColumn: fact_inventory.store
+	toColumn: dim_store.store
+
+relationship 06543f65-22b0-5da6-a6e6-d6e2d824430e
+	fromColumn: fact_inventory.item
+	toColumn: dim_item.item

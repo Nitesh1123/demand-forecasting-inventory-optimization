@@ -1,0 +1,39 @@
+table model_metrics
+	lineageTag: 8efeacb6-040c-56d2-a7d2-f8da2e57855f
+
+	column model
+		dataType: string
+		lineageTag: a5462618-b8c8-5a4b-a5a5-ba18c4e9b2fe
+		summarizeBy: none
+		sourceColumn: model
+
+	column wape
+		dataType: double
+		formatString: #,0.00
+		lineageTag: 92f039a5-208d-595f-8bce-2c097b03af91
+		summarizeBy: sum
+		sourceColumn: wape
+
+	column rmse
+		dataType: double
+		formatString: #,0.00
+		lineageTag: d056892f-cc2d-56ed-adf9-f3dc6fe7c206
+		summarizeBy: sum
+		sourceColumn: rmse
+
+	column bias
+		dataType: double
+		formatString: #,0.00
+		lineageTag: 74bc7f9c-988e-57f2-8d6a-95d67df5bb35
+		summarizeBy: sum
+		sourceColumn: bias
+
+	partition model_metrics = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(File.Contents(DataFolder & "model_metrics.csv"), [Delimiter = ",", Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+				    Promoted = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
+				    Typed = Table.TransformColumnTypes(Promoted, {{"model", type text}, {"wape", type number}, {"rmse", type number}, {"bias", type number}}, "en-US")
+				in
+				    Typed

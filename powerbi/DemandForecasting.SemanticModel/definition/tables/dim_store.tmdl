@@ -1,0 +1,26 @@
+table dim_store
+	lineageTag: 6e821744-ed4a-539f-a163-0a6658b2860d
+
+	column store
+		dataType: int64
+		formatString: 0
+		lineageTag: 6de55596-f2a4-5d6d-a395-6033a5758d50
+		summarizeBy: none
+		sourceColumn: store
+
+	column store_name
+		dataType: string
+		lineageTag: 2541547a-d5fa-54be-a6f6-a347d0af2122
+		summarizeBy: none
+		sourceColumn: store_name
+		sortByColumn: store
+
+	partition dim_store = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(File.Contents(DataFolder & "dim_store.csv"), [Delimiter = ",", Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+				    Promoted = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
+				    Typed = Table.TransformColumnTypes(Promoted, {{"store", Int64.Type}, {"store_name", type text}}, "en-US")
+				in
+				    Typed

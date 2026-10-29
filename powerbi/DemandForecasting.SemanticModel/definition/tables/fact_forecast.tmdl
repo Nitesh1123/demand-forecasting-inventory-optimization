@@ -1,0 +1,109 @@
+table fact_forecast
+	lineageTag: 3d8fc5ed-d8e2-5f97-9f59-f1b0429b27b4
+
+	measure 'Actual Units' = SUM ( fact_forecast[actual] )
+		formatString: #,0
+		lineageTag: 0671d2b7-18d2-58c0-8255-4bb37101d003
+
+	measure 'Forecast Units' = SUM ( fact_forecast[forecast] )
+		formatString: #,0
+		lineageTag: f35c17b0-f73d-5174-9092-586c0c6f4e00
+
+	measure 'Baseline Units' = SUM ( fact_forecast[baseline_forecast] )
+		formatString: #,0
+		lineageTag: 25199f02-4b63-53ab-a7ba-5541759c0bd6
+
+	measure WAPE = DIVIDE ( SUM ( fact_forecast[absolute_error] ), [Actual Units] )
+		formatString: 0.0%
+		lineageTag: aa6c33b0-1a52-55a1-bc85-c429b1b30807
+
+	measure 'Baseline WAPE' = DIVIDE ( SUM ( fact_forecast[baseline_absolute_error] ), [Actual Units] )
+		formatString: 0.0%
+		lineageTag: 11009ba2-4526-51a5-ad8c-7fd1e9ef7459
+
+	measure 'Forecast Accuracy' = 1 - [WAPE]
+		formatString: 0.0%
+		lineageTag: 00116131-b5b4-5d30-8001-03593ccd6766
+
+	measure 'Forecast Bias' = DIVIDE ( [Forecast Units] - [Actual Units], [Actual Units] )
+		formatString: 0.0%
+		lineageTag: a2f9b9cf-62f9-5caf-a0a4-d58fd296c541
+
+	measure 'Error Reduction' = 1 - DIVIDE ( SUM ( fact_forecast[absolute_error] ), SUM ( fact_forecast[baseline_absolute_error] ) )
+		formatString: 0.0%
+		lineageTag: ea196787-d4a6-5cca-8d59-92c2bbbaef3d
+
+	measure 'WAPE Color' = SWITCH ( TRUE (), ISBLANK ( [WAPE] ), BLANK (), [WAPE] <= 0.12, "#C8E6C9", [WAPE] <= 0.18, "#FFF3C4", "#FFCDD2" )
+		lineageTag: 2019ea96-3184-5418-9943-5341d5d4f87c
+
+	measure 'Forecast Chart Title' = VAR StoreCount = COUNTROWS ( VALUES ( dim_store[store_name] ) ) VAR ItemCount = COUNTROWS ( VALUES ( dim_item[item_name] ) ) VAR Stores = IF ( NOT ISFILTERED ( dim_store ), "all stores", IF ( StoreCount <= 3, CONCATENATEX ( VALUES ( dim_store[store_name] ), dim_store[store_name], ", " ), StoreCount & " stores" ) ) VAR Items = IF ( NOT ISFILTERED ( dim_item ), "all items", IF ( ItemCount <= 3, CONCATENATEX ( VALUES ( dim_item[item_name] ), dim_item[item_name], ", " ), ItemCount & " items" ) ) RETURN "Daily actual vs forecast: " & Stores & " | " & Items
+		lineageTag: 935926d7-8b3e-523b-ab51-340d8ef2725f
+
+	measure 'Forecast Insight' = VAR WorstItem = MAXX ( TOPN ( 1, ADDCOLUMNS ( VALUES ( dim_item[item_name] ), "@wape", [WAPE] ), [@wape], DESC ), dim_item[item_name] ) RETURN "LightGBM cuts forecast error by " & FORMAT ( [Error Reduction], "0.0%" ) & " vs. the seasonal-naive baseline (WAPE " & FORMAT ( [WAPE], "0.0%" ) & " vs " & FORMAT ( [Baseline WAPE], "0.0%" ) & "). Hardest item to forecast: " & WorstItem & " (WAPE " & FORMAT ( CALCULATE ( [WAPE], dim_item[item_name] = WorstItem ), "0.0%" ) & ")."
+		lineageTag: 67cba77a-746c-5ec7-9467-54c5b8d40aa4
+
+	column date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		lineageTag: d13eddd9-71e5-57fe-94a9-e503a56bbd7e
+		summarizeBy: none
+		sourceColumn: date
+
+	column store
+		dataType: int64
+		formatString: 0
+		lineageTag: 58991481-4baa-57a4-8460-20988724f236
+		summarizeBy: none
+		sourceColumn: store
+
+	column item
+		dataType: int64
+		formatString: 0
+		lineageTag: 7568bfe0-8c40-5879-9697-99df9a867cb0
+		summarizeBy: none
+		sourceColumn: item
+
+	column actual
+		dataType: double
+		formatString: #,0.00
+		lineageTag: 18fbf74d-4b8e-5275-ac7e-9995ef3728c3
+		summarizeBy: sum
+		sourceColumn: actual
+
+	column forecast
+		dataType: double
+		formatString: #,0.00
+		lineageTag: 8b9ae9ef-1d2e-585f-8068-8d9cad398e58
+		summarizeBy: sum
+		sourceColumn: forecast
+
+	column baseline_forecast
+		dataType: double
+		formatString: #,0.00
+		lineageTag: 6dc5bb46-8da3-5327-8e61-928aab7d590f
+		summarizeBy: sum
+		sourceColumn: baseline_forecast
+
+	column absolute_error
+		dataType: double
+		formatString: #,0.00
+		lineageTag: ac806be5-1ce4-5323-be7f-1aabd56c92b9
+		summarizeBy: sum
+		sourceColumn: absolute_error
+
+	column baseline_absolute_error
+		dataType: double
+		formatString: #,0.00
+		lineageTag: 8abb1e5d-523a-525d-a5c6-3760d8ebf590
+		summarizeBy: sum
+		sourceColumn: baseline_absolute_error
+
+	partition fact_forecast = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(File.Contents(DataFolder & "fact_forecast.csv"), [Delimiter = ",", Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+				    Promoted = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
+				    Typed = Table.TransformColumnTypes(Promoted, {{"date", type date}, {"store", Int64.Type}, {"item", Int64.Type}, {"actual", type number}, {"forecast", type number}, {"baseline_forecast", type number}, {"absolute_error", type number}, {"baseline_absolute_error", type number}}, "en-US")
+				in
+				    Typed

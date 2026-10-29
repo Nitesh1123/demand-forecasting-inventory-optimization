@@ -17,6 +17,9 @@ train.csv
 outputs/*
 !outputs/model_metrics.csv
 !outputs/inventory_summary.csv
+!outputs/allocation_strategy_comparison.csv
 !outputs/tuning_metrics.csv
+!outputs/feature_importance.csv
+!outputs/sql_results/
 !screenshots/
 !screenshots/**

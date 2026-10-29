@@ -1,0 +1,106 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/1.0.0/schema.json",
+  "name": "invStrategy",
+  "position": {
+    "x": 20,
+    "y": 292,
+    "z": 13,
+    "width": 600,
+    "height": 418,
+    "tabOrder": 13
+  },
+  "visual": {
+    "visualType": "clusteredColumnChart",
+    "drillFilterOtherVisuals": true,
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "dim_store"
+                    }
+                  },
+                  "Property": "store_name"
+                }
+              },
+              "queryRef": "dim_store.store_name",
+              "nativeQueryRef": "store_name"
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "fact_inventory"
+                    }
+                  },
+                  "Property": "Unmet Demand (Optimised)"
+                }
+              },
+              "queryRef": "fact_inventory.Unmet Demand (Optimised)",
+              "nativeQueryRef": "Unmet Demand (Optimised)"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "fact_inventory"
+                    }
+                  },
+                  "Property": "Unmet Demand (Proportional)"
+                }
+              },
+              "queryRef": "fact_inventory.Unmet Demand (Proportional)",
+              "nativeQueryRef": "Unmet Demand (Proportional)"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "fact_inventory"
+                    }
+                  },
+                  "Property": "Unmet Demand (Equal Split)"
+                }
+              },
+              "queryRef": "fact_inventory.Unmet Demand (Equal Split)",
+              "nativeQueryRef": "Unmet Demand (Equal Split)"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Unmet demand by store and allocation strategy'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

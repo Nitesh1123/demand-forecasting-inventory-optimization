@@ -1,0 +1,32 @@
+table dim_item
+	lineageTag: 8edcebd2-efce-5027-a975-e97a3b927b3a
+
+	column item
+		dataType: int64
+		formatString: 0
+		lineageTag: 6481d61c-9c4b-52d9-a67a-678f5fcf71c0
+		summarizeBy: none
+		sourceColumn: item
+
+	column item_name
+		dataType: string
+		lineageTag: ac57e58b-71c3-54cc-8f06-b67811aa7c86
+		summarizeBy: none
+		sourceColumn: item_name
+		sortByColumn: item
+
+	column abc_class
+		dataType: string
+		lineageTag: 25fb3245-c7ef-58cf-8d37-9c7d7f65aad4
+		summarizeBy: none
+		sourceColumn: abc_class
+
+	partition dim_item = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(File.Contents(DataFolder & "dim_item.csv"), [Delimiter = ",", Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+				    Promoted = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
+				    Typed = Table.TransformColumnTypes(Promoted, {{"item", Int64.Type}, {"item_name", type text}, {"abc_class", type text}}, "en-US")
+				in
+				    Typed

@@ -1,0 +1,2 @@
+expression DataFolder = "C:\Users\knite\OneDrive\Desktop\demab\demand-forecasting-inventory-optimization\outputs\powerbi\" meta [IsParameterQuery = true, Type = "Text", IsParameterQueryRequired = true]
+	lineageTag: 0b2b3bd5-9dcc-519f-90a6-1c30672531bc

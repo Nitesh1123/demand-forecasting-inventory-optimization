@@ -1,0 +1,4 @@
+abc_class,actual_demand,pulp_unmet,proportional_unmet,equal_split_unmet,pulp_fill_rate,proportional_fill_rate,equal_split_fill_rate
+A,1976241.0,395421.0,395421.0,432031.0,0.7999,0.7999,0.7814
+B,361859.0,72079.0,72079.0,78856.0,0.8008,0.8008,0.7821
+C,120309.0,22824.0,22824.0,25489.0,0.8103,0.8103,0.7881

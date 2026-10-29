@@ -1,5 +1,5 @@
-# Databricks notebook source
 from datetime import timedelta
+import itertools
 import os
 from pathlib import Path
 
@@ -12,11 +12,15 @@ import pandas as pd
 OUTPUT_PATH = "outputs"
 DATA_PATH = "outputs/features.parquet"
 HORIZON_DAYS = 90
+CATEGORICAL_COLUMNS = ["store", "item"]
 FEATURE_COLUMNS = [
     "store",
     "item",
     "day_of_week",
+    "day_of_month",
+    "week_of_year",
     "month",
+    "year",
     "day_of_year",
     "is_us_holiday",
     "lag_91",
@@ -26,6 +30,7 @@ FEATURE_COLUMNS = [
     "rolling_mean_28",
     "rolling_mean_91",
 ]
+KEY_COLUMNS = ["date", "store", "item"]
 
 output_path = os.path.abspath(OUTPUT_PATH)
 os.makedirs(output_path, exist_ok=True)
@@ -53,10 +58,11 @@ train_pdf = features.loc[
 ].copy()
 validation_pdf = features.loc[
     (features["date"] >= validation_start) & (features["date"] < test_start),
-    FEATURE_COLUMNS + ["sales"],
+    ["date", *FEATURE_COLUMNS, "sales"],
 ].copy()
 test_pdf = features.loc[features["split"] == "test", ["date", *FEATURE_COLUMNS, "sales"]]
 test_pdf = test_pdf.sort_values(["date", "store", "item"]).reset_index(drop=True)
+
 
 def wape(actual, predicted):
     denominator = actual.sum()
@@ -69,7 +75,21 @@ def regression_metrics(actual, predicted):
     return {
         "wape": wape(actual, predicted),
         "rmse": float(((actual - predicted) ** 2).mean() ** 0.5),
+        # Positive bias means the model over-forecasts in total.
+        "bias": float((predicted - actual).sum() / actual.sum()),
     }
+
+
+def build_model(configuration):
+    return lgb.LGBMRegressor(
+        objective="regression",
+        random_state=42,
+        deterministic=True,
+        force_col_wise=True,
+        n_jobs=-1,
+        verbose=-1,
+        **configuration,
+    )
 
 
 class SeasonalNaiveModel(mlflow.pyfunc.PythonModel):
@@ -87,44 +107,43 @@ with mlflow.start_run(run_name="seasonal_naive_364"):
     mlflow.pyfunc.log_model(artifact_path="model", python_model=SeasonalNaiveModel())
 
 configurations = [
-    {"num_leaves": 31, "learning_rate": 0.05, "n_estimators": 300},
-    {"num_leaves": 63, "learning_rate": 0.03, "n_estimators": 450},
+    {"num_leaves": num_leaves, "learning_rate": learning_rate, "n_estimators": n_estimators, "min_child_samples": 50}
+    for num_leaves, (learning_rate, n_estimators) in itertools.product(
+        (31, 63, 127),
+        ((0.05, 400), (0.03, 700)),
+    )
 ]
 tuning_results = []
+best_validation_prediction = None
 
 for configuration_id, configuration in enumerate(configurations, start=1):
-    model = lgb.LGBMRegressor(
-        objective="regression",
-        random_state=42,
-        deterministic=True,
-        force_col_wise=True,
-        n_jobs=-1,
-        **configuration,
-    )
-    model.fit(train_pdf[FEATURE_COLUMNS], train_pdf["sales"])
+    model = build_model(configuration)
+    model.fit(train_pdf[FEATURE_COLUMNS], train_pdf["sales"], categorical_feature=CATEGORICAL_COLUMNS)
     validation_prediction = model.predict(validation_pdf[FEATURE_COLUMNS]).clip(0, None)
     metrics = regression_metrics(validation_pdf["sales"].to_numpy(), validation_prediction)
     with mlflow.start_run(run_name=f"lightgbm_validation_{configuration_id}"):
         mlflow.log_params({"model": "lightgbm", "validation_start": str(validation_start), **configuration})
         mlflow.log_metrics({f"validation_{name}": value for name, value in metrics.items()})
         mlflow.lightgbm.log_model(model, artifact_path="model")
+    if not tuning_results or metrics["wape"] < min(result["wape"] for result in tuning_results):
+        best_validation_prediction = validation_prediction
     tuning_results.append({"configuration_id": configuration_id, **configuration, **metrics})
+    print(f"Configuration {configuration_id}: {configuration} -> validation WAPE {metrics['wape']:.4f}")
 
 del train_pdf, model, validation_prediction
 best_result = min(tuning_results, key=lambda result: result["wape"])
 best_configuration = configurations[best_result["configuration_id"] - 1]
-final_model = lgb.LGBMRegressor(
-    objective="regression",
-    random_state=42,
-    deterministic=True,
-    force_col_wise=True,
-    n_jobs=-1,
-    **best_configuration,
-)
+
+# Validation residuals feed safety stock and allocation uncertainty, so the test window
+# is only used for final evaluation.
+validation_predictions_pdf = validation_pdf[KEY_COLUMNS + ["sales"]].rename(columns={"sales": "actual"})
+validation_predictions_pdf["forecast"] = best_validation_prediction
+
+final_model = build_model(best_configuration)
 full_train_pdf = features.loc[
     features["split"] == "train", FEATURE_COLUMNS + ["sales"]
 ].copy()
-final_model.fit(full_train_pdf[FEATURE_COLUMNS], full_train_pdf["sales"])
+final_model.fit(full_train_pdf[FEATURE_COLUMNS], full_train_pdf["sales"], categorical_feature=CATEGORICAL_COLUMNS)
 del full_train_pdf
 model_prediction = final_model.predict(test_pdf[FEATURE_COLUMNS]).clip(0, None)
 model_metrics = regression_metrics(test_pdf["sales"].to_numpy(), model_prediction)
@@ -143,17 +162,27 @@ metrics_table = pd.DataFrame(
     ]
 )
 tuning_table = pd.DataFrame(tuning_results)
+feature_importance = pd.DataFrame(
+    {
+        "feature": FEATURE_COLUMNS,
+        "importance_gain": final_model.booster_.feature_importance(importance_type="gain"),
+    }
+).sort_values("importance_gain", ascending=False)
 predictions_pdf = test_pdf[["date", "store", "item", "sales"]].copy()
 predictions_pdf = predictions_pdf.rename(columns={"sales": "actual"})
 predictions_pdf["forecast"] = model_prediction
+predictions_pdf["baseline_forecast"] = baseline_prediction
 
 metrics_table.to_csv(os.path.join(output_path, "model_metrics.csv"), index=False)
 tuning_table.to_csv(os.path.join(output_path, "tuning_metrics.csv"), index=False)
+feature_importance.to_csv(os.path.join(output_path, "feature_importance.csv"), index=False)
 predictions_pdf.to_parquet(os.path.join(output_path, "predictions.parquet"), index=False)
 predictions_pdf.to_csv(os.path.join(output_path, "predictions.csv"), index=False)
+validation_predictions_pdf.to_parquet(os.path.join(output_path, "validation_predictions.parquet"), index=False)
 
 print(metrics_table.to_string(index=False))
 print(tuning_table.to_string(index=False))
+print(feature_importance.to_string(index=False))
 
 import matplotlib.pyplot as plt
 

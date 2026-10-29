@@ -1,0 +1,38 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/1.0.0/schema.json",
+  "name": "fcCard3",
+  "position": {
+    "x": 650,
+    "y": 130,
+    "z": 8,
+    "width": 200,
+    "height": 92,
+    "tabOrder": 8
+  },
+  "visual": {
+    "visualType": "card",
+    "drillFilterOtherVisuals": true,
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "fact_forecast"
+                    }
+                  },
+                  "Property": "Forecast Bias"
+                }
+              },
+              "queryRef": "fact_forecast.Forecast Bias",
+              "nativeQueryRef": "Forecast Bias"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

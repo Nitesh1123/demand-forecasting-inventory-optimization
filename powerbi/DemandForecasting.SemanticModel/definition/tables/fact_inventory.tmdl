@@ -1,0 +1,171 @@
+table fact_inventory
+	lineageTag: a7561f3c-c87a-551e-b9a7-a0df7a256a30
+
+	measure 'Inventory Demand' = SUM ( fact_inventory[actual_demand] )
+		formatString: #,0
+		lineageTag: df96f706-741c-5f0c-ae9d-c30e6415ad3e
+
+	measure 'Allocated Supply' = SUM ( fact_inventory[pulp_allocation] )
+		formatString: #,0
+		lineageTag: f58682a3-3bc3-5191-bf77-36e6dc21d3b5
+
+	measure 'Unmet Demand (Optimised)' = SUM ( fact_inventory[pulp_actual_unmet] )
+		formatString: #,0
+		lineageTag: 7cc085ed-ab2d-5b96-894e-0c1053835841
+
+	measure 'Unmet Demand (Proportional)' = SUM ( fact_inventory[proportional_actual_unmet] )
+		formatString: #,0
+		lineageTag: 5d1d8e63-fdb0-5f6c-8f2c-a8fd0ca83a78
+
+	measure 'Unmet Demand (Equal Split)' = SUM ( fact_inventory[equal_split_actual_unmet] )
+		formatString: #,0
+		lineageTag: 37690343-74f0-565a-8f44-6a5509d1a333
+
+	measure 'Fill Rate (Optimised)' = 1 - DIVIDE ( [Unmet Demand (Optimised)], [Inventory Demand] )
+		formatString: 0.0%
+		lineageTag: 01ff02de-f2e0-5bbf-8fcb-5ddcc1d66d66
+
+	measure 'Fill Rate (Proportional)' = 1 - DIVIDE ( [Unmet Demand (Proportional)], [Inventory Demand] )
+		formatString: 0.0%
+		lineageTag: b6b5d35f-d054-5165-b512-a42b01828b30
+
+	measure 'Fill Rate (Equal Split)' = 1 - DIVIDE ( [Unmet Demand (Equal Split)], [Inventory Demand] )
+		formatString: 0.0%
+		lineageTag: dd492b04-7443-5bce-9029-fcf43d267c6b
+
+	measure 'Worst Fill Rate (Optimised)' = MINX ( fact_inventory, 1 - DIVIDE ( fact_inventory[pulp_actual_unmet], fact_inventory[actual_demand] ) )
+		formatString: 0.0%
+		lineageTag: 85478c41-6ba4-5e0c-929f-fca6acfe6e62
+
+	measure 'Worst Fill Rate (Equal Split)' = MINX ( fact_inventory, 1 - DIVIDE ( fact_inventory[equal_split_actual_unmet], fact_inventory[actual_demand] ) )
+		formatString: 0.0%
+		lineageTag: 83b8f01d-5751-5f8b-8ce4-38b99e74ca8a
+
+	measure 'Fill Rate Color' = SWITCH ( TRUE (), ISBLANK ( [Fill Rate (Optimised)] ), BLANK (), [Fill Rate (Optimised)] >= 0.8, "#C8E6C9", [Fill Rate (Optimised)] >= 0.7, "#FFF3C4", "#FFCDD2" )
+		lineageTag: 8c07f4a9-c1e8-5a86-bab4-ce9c2adaff7e
+
+	measure 'Safety Stock (What-if)' = SUMX ( fact_inventory, NORM.S.INV ( [Service Level Value] ) * fact_inventory[residual_std_daily] * SQRT ( [Lead Time Value] ) )
+		formatString: #,0
+		lineageTag: ae075aa0-50c8-578d-b6f4-f2ff3c1ea965
+
+	measure 'Reorder Point (What-if)' = SUMX ( fact_inventory, fact_inventory[forecast_mean_daily_demand] * [Lead Time Value] ) + [Safety Stock (What-if)]
+		formatString: #,0
+		lineageTag: 4af02554-b387-5cc3-8f46-ff343e72c782
+
+	measure 'Inventory Insight' = "With supply capped at 80% of forecast, the optimised allocation keeps every store-item at or above " & FORMAT ( [Worst Fill Rate (Optimised)], "0%" ) & " fill rate (equal split: " & FORMAT ( [Worst Fill Rate (Equal Split)], "0%" ) & "). At a " & FORMAT ( [Service Level Value], "0%" ) & " service level and " & [Lead Time Value] & "-day lead time, safety stock is " & FORMAT ( [Safety Stock (What-if)], "#,0" ) & " units."
+		lineageTag: fe35a80b-f8f7-5f37-acc1-c822f3e4fb4b
+
+	column item
+		dataType: int64
+		formatString: 0
+		lineageTag: 1e60b38c-dae9-591b-9b2e-a539346464b0
+		summarizeBy: none
+		sourceColumn: item
+
+	column store
+		dataType: int64
+		formatString: 0
+		lineageTag: 47866f97-e983-5662-9223-7b1c1250030e
+		summarizeBy: none
+		sourceColumn: store
+
+	column forecast_demand
+		dataType: double
+		formatString: #,0.00
+		lineageTag: 9760aafb-1f72-5c86-8fa9-cd4108e58e69
+		summarizeBy: sum
+		sourceColumn: forecast_demand
+
+	column actual_demand
+		dataType: double
+		formatString: #,0.00
+		lineageTag: 8cb0fae6-0f1f-5b19-aa2e-092d162a76c0
+		summarizeBy: sum
+		sourceColumn: actual_demand
+
+	column total_item_supply
+		dataType: int64
+		formatString: 0
+		lineageTag: 63da43f9-b771-54e4-9ef3-b225bf989597
+		summarizeBy: sum
+		sourceColumn: total_item_supply
+
+	column pulp_allocation
+		dataType: int64
+		formatString: 0
+		lineageTag: c20f0487-c60c-5ba1-9817-40ac55a4afa4
+		summarizeBy: sum
+		sourceColumn: pulp_allocation
+
+	column proportional_allocation
+		dataType: int64
+		formatString: 0
+		lineageTag: 80319c08-e227-5537-81f8-78d36a83b846
+		summarizeBy: sum
+		sourceColumn: proportional_allocation
+
+	column equal_split_allocation
+		dataType: int64
+		formatString: 0
+		lineageTag: a4f517e7-5324-5399-892b-79de6b28c383
+		summarizeBy: sum
+		sourceColumn: equal_split_allocation
+
+	column pulp_actual_unmet
+		dataType: double
+		formatString: #,0.00
+		lineageTag: 85be9ab6-e8e1-5f71-8a46-33b08bc2d77b
+		summarizeBy: sum
+		sourceColumn: pulp_actual_unmet
+
+	column proportional_actual_unmet
+		dataType: double
+		formatString: #,0.00
+		lineageTag: 69454408-6893-5b9f-98bf-84c0dd6c7ccb
+		summarizeBy: sum
+		sourceColumn: proportional_actual_unmet
+
+	column equal_split_actual_unmet
+		dataType: double
+		formatString: #,0.00
+		lineageTag: 4c7ee3d2-86f1-5026-b556-9844a4931ac7
+		summarizeBy: sum
+		sourceColumn: equal_split_actual_unmet
+
+	column forecast_mean_daily_demand
+		dataType: double
+		formatString: #,0.00
+		lineageTag: 2ebf5cab-13e7-5942-ae31-6637ff8eb9ec
+		summarizeBy: sum
+		sourceColumn: forecast_mean_daily_demand
+
+	column residual_std_daily
+		dataType: double
+		formatString: #,0.00
+		lineageTag: b24e0a09-ea27-5d77-abe5-e8737e146af9
+		summarizeBy: sum
+		sourceColumn: residual_std_daily
+
+	column safety_stock
+		dataType: double
+		formatString: #,0.00
+		lineageTag: 77c8fef3-5435-5993-822c-228a6fa407b6
+		summarizeBy: sum
+		sourceColumn: safety_stock
+
+	column reorder_point
+		dataType: double
+		formatString: #,0.00
+		lineageTag: 2efdccf8-d5f9-5f0f-9c43-1d0048e30eb7
+		summarizeBy: sum
+		sourceColumn: reorder_point
+
+	partition fact_inventory = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(File.Contents(DataFolder & "fact_inventory.csv"), [Delimiter = ",", Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+				    Promoted = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
+				    Typed = Table.TransformColumnTypes(Promoted, {{"item", Int64.Type}, {"store", Int64.Type}, {"forecast_demand", type number}, {"actual_demand", type number}, {"total_item_supply", Int64.Type}, {"pulp_allocation", Int64.Type}, {"proportional_allocation", Int64.Type}, {"equal_split_allocation", Int64.Type}, {"pulp_actual_unmet", type number}, {"proportional_actual_unmet", type number}, {"equal_split_actual_unmet", type number}, {"forecast_mean_daily_demand", type number}, {"residual_std_daily", type number}, {"safety_stock", type number}, {"reorder_point", type number}}, "en-US")
+				in
+				    Typed

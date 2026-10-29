@@ -1,0 +1,14 @@
+{
+  "name": "Demand Forecasting",
+  "dataColors": [
+    "#0096D6",
+    "#F28C28",
+    "#7A7A7A",
+    "#2E7D32",
+    "#C62828",
+    "#6A1B9A"
+  ],
+  "background": "#FFFFFF",
+  "foreground": "#1F2937",
+  "tableAccent": "#0096D6"
+}

@@ -1,5 +1,3 @@
-# Databricks notebook source
-# COMMAND ----------
 from datetime import timedelta
 import os
 
@@ -43,6 +41,20 @@ print(f"Input row count: {sales.count()}")
 if null_count or duplicate_count:
     raise ValueError("Input contains null values or duplicate store-item-date keys")
 
+# Row-based lags and rolling windows assume one row per calendar day in every series.
+gap_series_count = (
+    sales.groupBy("store", "item")
+    .agg(
+        F.count("*").alias("row_count"),
+        (F.datediff(F.max("date"), F.min("date")) + 1).alias("calendar_days"),
+    )
+    .filter(F.col("row_count") != F.col("calendar_days"))
+    .count()
+)
+print(f"Store-item series with missing dates: {gap_series_count}")
+if gap_series_count:
+    raise ValueError("Input contains store-item series with missing dates")
+
 sales = sales.repartition("store", "item").sortWithinPartitions("store", "item", "date")
 print(sales.orderBy("store", "item", "date").limit(20).toPandas().to_string(index=False))
 
@@ -61,7 +73,10 @@ series_window = Window.partitionBy("store", "item").orderBy("date")
 
 features = (
     sales.withColumn("day_of_week", F.dayofweek("date"))
+    .withColumn("day_of_month", F.dayofmonth("date"))
+    .withColumn("week_of_year", F.weekofyear("date"))
     .withColumn("month", F.month("date"))
+    .withColumn("year", F.year("date"))
     .withColumn("day_of_year", F.dayofyear("date"))
     .join(F.broadcast(holidays), sales.date == holidays.holiday_date, "left")
     .withColumn("is_us_holiday", F.when(F.col("holiday_date").isNotNull(), 1).otherwise(0))

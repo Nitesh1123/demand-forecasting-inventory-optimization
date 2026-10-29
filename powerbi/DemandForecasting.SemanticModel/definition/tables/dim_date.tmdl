@@ -1,0 +1,102 @@
+table dim_date
+	lineageTag: 5fb85f5b-5a26-55a4-8af7-6dbde5b5d306
+	dataCategory: Time
+
+	column date
+		dataType: dateTime
+		isKey
+		formatString: yyyy-mm-dd
+		lineageTag: e77dd6b8-a4d5-5b44-af76-738277efc330
+		summarizeBy: none
+		sourceColumn: date
+
+	column year
+		dataType: int64
+		formatString: 0
+		lineageTag: ce8b1da7-a033-5a81-841e-4f09610e4f5d
+		summarizeBy: none
+		sourceColumn: year
+
+	column quarter
+		dataType: string
+		lineageTag: d993b7aa-e9ef-547a-b340-97029553eae3
+		summarizeBy: none
+		sourceColumn: quarter
+
+	column month_number
+		dataType: int64
+		formatString: 0
+		lineageTag: 522e5ee1-6dbc-5183-8143-921521a284d5
+		summarizeBy: none
+		sourceColumn: month_number
+
+	column month_name
+		dataType: string
+		lineageTag: 6e20a8f3-e334-5fb9-82f8-84bd36861842
+		summarizeBy: none
+		sourceColumn: month_name
+		sortByColumn: month_number
+
+	column year_month
+		dataType: string
+		lineageTag: db765ab2-d8b5-571d-9119-47254aceb12e
+		summarizeBy: none
+		sourceColumn: year_month
+
+	column month_start
+		dataType: dateTime
+		formatString: mmm yyyy
+		lineageTag: 4323116f-9317-5828-a8ef-530259a0d0f6
+		summarizeBy: none
+		sourceColumn: month_start
+
+	column week_of_year
+		dataType: int64
+		formatString: 0
+		lineageTag: 95a4c126-e1a6-596d-bb25-f630f2de4942
+		summarizeBy: none
+		sourceColumn: week_of_year
+
+	column day_of_week_number
+		dataType: int64
+		formatString: 0
+		lineageTag: 76636581-5c6f-5cf0-9746-78479eae5f84
+		summarizeBy: none
+		sourceColumn: day_of_week_number
+
+	column day_of_week_name
+		dataType: string
+		lineageTag: 43029593-0851-5f5f-957f-4256d5f1464e
+		summarizeBy: none
+		sourceColumn: day_of_week_name
+		sortByColumn: day_of_week_number
+
+	column is_weekend
+		dataType: int64
+		formatString: 0
+		lineageTag: 52b829e8-4938-5f86-a7b4-7642d44b5ab5
+		summarizeBy: sum
+		sourceColumn: is_weekend
+
+	column is_us_holiday
+		dataType: int64
+		formatString: 0
+		lineageTag: df7c2315-f52e-5712-8175-df1af98ec1a4
+		summarizeBy: sum
+		sourceColumn: is_us_holiday
+
+	column period
+		dataType: string
+		lineageTag: 2cb75f54-e240-59a9-aa7c-a80dc1ae7708
+		summarizeBy: none
+		sourceColumn: period
+
+	partition dim_date = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(File.Contents(DataFolder & "dim_date.csv"), [Delimiter = ",", Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+				    Promoted = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
+				    Typed = Table.TransformColumnTypes(Promoted, {{"date", type date}, {"year", Int64.Type}, {"quarter", type text}, {"month_number", Int64.Type}, {"month_name", type text}, {"year_month", type text}, {"month_start", type date}, {"week_of_year", Int64.Type}, {"day_of_week_number", Int64.Type}, {"day_of_week_name", type text}, {"is_weekend", Int64.Type}, {"is_us_holiday", Int64.Type}, {"period", type text}}, "en-US")
+				in
+				    Typed

@@ -1,0 +1,56 @@
+table fact_sales
+	lineageTag: b0411442-7397-57a2-94eb-36ca8f730ecf
+
+	measure 'Total Sales' = SUM ( fact_sales[sales] )
+		formatString: #,0
+		lineageTag: e8061d2a-04a6-52a2-81ba-e47199751af8
+
+	measure 'Sales LY' = CALCULATE ( [Total Sales], SAMEPERIODLASTYEAR ( dim_date[date] ) )
+		formatString: #,0
+		lineageTag: 67903bc7-3db2-5872-97c5-b40702debbed
+
+	measure 'YoY Growth %' = VAR LatestYear = MAX ( dim_date[year] ) VAR CurrentSales = CALCULATE ( [Total Sales], dim_date[year] = LatestYear ) VAR PreviousSales = CALCULATE ( [Total Sales], dim_date[year] = LatestYear - 1 ) RETURN DIVIDE ( CurrentSales - PreviousSales, PreviousSales )
+		formatString: 0.0%
+		lineageTag: 9f5a7b55-51ea-5f3e-80eb-9b12a15fc4ef
+
+	measure 'Avg Daily Sales' = AVERAGEX ( VALUES ( dim_date[date] ), [Total Sales] )
+		formatString: #,0
+		lineageTag: 9842266b-0186-51cd-bd02-129470f0c2ee
+
+	column date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		lineageTag: fdf17d59-d274-5ab4-af2c-6933d8b5af4b
+		summarizeBy: none
+		sourceColumn: date
+
+	column store
+		dataType: int64
+		formatString: 0
+		lineageTag: ea426742-8ab3-5d4d-842a-d50afaa6d4eb
+		summarizeBy: none
+		sourceColumn: store
+
+	column item
+		dataType: int64
+		formatString: 0
+		lineageTag: 52e33dc6-9fa8-5424-b1ba-07268ae9e302
+		summarizeBy: none
+		sourceColumn: item
+
+	column sales
+		dataType: int64
+		formatString: 0
+		lineageTag: 32b7e0b4-271b-5c7c-addb-bbe0bb07c86f
+		summarizeBy: sum
+		sourceColumn: sales
+
+	partition fact_sales = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(File.Contents(DataFolder & "fact_sales.csv"), [Delimiter = ",", Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+				    Promoted = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
+				    Typed = Table.TransformColumnTypes(Promoted, {{"date", type date}, {"store", Int64.Type}, {"item", Int64.Type}, {"sales", Int64.Type}}, "en-US")
+				in
+				    Typed

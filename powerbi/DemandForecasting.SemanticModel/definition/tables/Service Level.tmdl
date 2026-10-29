@@ -1,0 +1,22 @@
+table 'Service Level'
+	lineageTag: e77b6b21-340d-5610-8e30-decee23b7ad7
+
+	measure 'Service Level Value' = SELECTEDVALUE ( 'Service Level'[Service Level], 0.95 )
+		formatString: 0%
+		lineageTag: dd6ba13c-b0c1-5fc9-a163-d4d21d597871
+
+	column 'Service Level'
+		dataType: double
+		formatString: 0%
+		lineageTag: 6ff7f0e7-aa0e-5eb3-ad4d-5ff53427821d
+		summarizeBy: none
+		sourceColumn: [Value]
+
+		extendedProperty ParameterMetadata =
+				{
+				  "version": 0
+				}
+
+	partition 'Service Level' = calculated
+		mode: import
+		source = SELECTCOLUMNS ( GENERATESERIES ( 80, 99, 1 ), "Value", [Value] / 100 )
